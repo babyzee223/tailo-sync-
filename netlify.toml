@@ -41,5 +41,3 @@
   pretty_urls = true
 [build.processing.images]
   compress = true
-
-auth.uid() = user_id
