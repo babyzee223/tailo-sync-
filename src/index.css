@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark mode styles */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  @apply bg-gray-900;
+}
+
+/* Dark mode component styles */
+.dark .bg-white {
+  @apply bg-gray-800;
+}
+
+.dark .text-gray-900 {
+  @apply text-white;
+}
+
+.dark .text-gray-800 {
+  @apply text-gray-100;
+}
+
+.dark .text-gray-700 {
+  @apply text-gray-200;
+}
+
+.dark .text-gray-600 {
+  @apply text-gray-300;
+}
+
+.dark .text-gray-500 {
+  @apply text-gray-400;
+}
+
+.dark .border-gray-200 {
+  @apply border-gray-700;
+}
+
+.dark .border-gray-300 {
+  @apply border-gray-600;
+}
+
+.dark .bg-gray-50 {
+  @apply bg-gray-900;
+}
+
+.dark .bg-gray-100 {
+  @apply bg-gray-800;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  @apply hover:bg-gray-800;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  @apply hover:bg-gray-700;
+}
+
+/* Form controls */
+.dark input,
+.dark select,
+.dark textarea {
+  @apply bg-gray-800 border-gray-600 text-white;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  @apply text-gray-400;
+}
+
+/* Buttons */
+.dark .bg-blue-50 {
+  @apply bg-blue-900;
+}
+
+.dark .text-blue-600 {
+  @apply text-blue-400;
+}
+
+.dark .hover\:bg-blue-100:hover {
+  @apply hover:bg-blue-800;
+}
+
+/* Cards and panels */
+.dark .shadow-sm {
+  @apply shadow-gray-800;
+}
+
+.dark .shadow-md {
+  @apply shadow-gray-900;
+}
