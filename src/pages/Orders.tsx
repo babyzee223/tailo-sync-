@@ -1,26 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
-import { Clock, Loader, CheckCircle, Search, Plus, Archive } from 'lucide-react';
+import { Clock, Loader, CheckCircle, Search, Plus, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
 import NewOrderModal from '../components/NewOrderModal';
 import OrderDetailsModal from '../components/OrderDetailsModal';
 import type { Order, AlterationStatus } from '../types';
 import OrderStatusSelect from '../components/OrderStatusSelect';
-import { getStoredOrders, storeOrder } from '../services/orders';
+import { getStoredOrders, storeOrder, type PaginatedOrders } from '../services/orders';
 import { supabase } from '../lib/supabaseClient';
 
 function Orders() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [paginatedData, setPaginatedData] = useState<PaginatedOrders>({
+    orders: [],
+    totalCount: 0,
+    hasMore: false
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AlterationStatus | 'all'>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  const loadOrders = async () => {
+  const pageSize = 20;
+
+  const loadOrders = useCallback(async (page: number = 1, append: boolean = false) => {
     try {
-      setIsLoading(true);
+      if (page === 1) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
       setError(null);
 
       // Get current user
@@ -29,20 +41,40 @@ function Orders() {
         throw new Error('User not found. Please log in again.');
       }
 
-      const storedOrders = await getStoredOrders(user.id);
-      setOrders(Array.isArray(storedOrders) ? storedOrders : []);
+      const filterStatus = statusFilter === 'all' ? undefined : statusFilter;
+      const result = await getStoredOrders(user.id, page, pageSize, filterStatus);
+
+      if (append && page > 1) {
+        setPaginatedData(prev => ({
+          ...result,
+          orders: [...prev.orders, ...result.orders]
+        }));
+      } else {
+        setPaginatedData(result);
+      }
+
+      setCurrentPage(page);
     } catch (err) {
       console.error('Failed to load orders:', err);
       setError(err instanceof Error ? err.message : 'Failed to load orders. Please try again.');
-      setOrders([]);
+      if (!append) {
+        setPaginatedData({ orders: [], totalCount: 0, hasMore: false });
+      }
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    loadOrders(1, false);
+  }, [loadOrders]);
+
+  const handleLoadMore = () => {
+    if (paginatedData.hasMore && !isLoadingMore) {
+      loadOrders(currentPage + 1, true);
+    }
+  };
 
   const handleOrderCreated = async (newOrder: Order) => {
     try {
@@ -51,7 +83,9 @@ function Orders() {
       if (!user) throw new Error('User not found');
 
       await storeOrder(newOrder, user.id);
-      setOrders(prevOrders => [newOrder, ...prevOrders]);
+      
+      // Refresh the first page to show the new order
+      await loadOrders(1, false);
       setIsNewOrderModalOpen(false);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to create order');
@@ -65,9 +99,14 @@ function Orders() {
       if (!user) throw new Error('User not found');
 
       await storeOrder(updatedOrder, user.id);
-      setOrders(prevOrders => 
-        prevOrders.map(order => order.id === updatedOrder.id ? updatedOrder : order)
-      );
+      
+      // Update the order in the current list
+      setPaginatedData(prev => ({
+        ...prev,
+        orders: prev.orders.map(order => 
+          order.id === updatedOrder.id ? updatedOrder : order
+        )
+      }));
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to update order');
     }
@@ -97,7 +136,9 @@ function Orders() {
       };
 
       await storeOrder(updatedOrder, user.id);
-      await loadOrders();
+      
+      // Remove from current list and refresh
+      await loadOrders(1, false);
       setSelectedOrder(null);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to archive order');
@@ -107,20 +148,16 @@ function Orders() {
   const filterOrders = (orders: Order[]) => {
     if (!Array.isArray(orders)) return [];
     
-    return orders
-      .filter(order => {
-        // Filter archived orders
-        if (order.status === 'archived' && !showArchived) return false;
-        
-        const matchesSearch = 
-          order.clientInfo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          order.garments.some(g => g.garmentInfo.type.toLowerCase().includes(searchQuery.toLowerCase()));
-        
-        const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-        
-        return matchesSearch && matchesStatus;
-      })
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    return orders.filter(order => {
+      // Filter archived orders
+      if (order.status === 'archived' && !showArchived) return false;
+      
+      const matchesSearch = 
+        order.clientInfo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.garments.some(g => g.garmentInfo.type.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      return matchesSearch;
+    });
   };
 
   const handleViewDetails = (order: Order) => {
@@ -135,6 +172,9 @@ function Orders() {
     return `Due in ${days} days`;
   };
 
+  const filteredOrders = filterOrders(paginatedData.orders);
+  const archivedCount = paginatedData.orders.filter(order => order.status === 'archived').length;
+
   if (isLoading) {
     return (
       <Layout>
@@ -148,14 +188,16 @@ function Orders() {
     );
   }
 
-  const filteredOrders = filterOrders(orders);
-  const archivedCount = orders.filter(order => order.status === 'archived').length;
-
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Showing {filteredOrders.length} of {paginatedData.totalCount} orders
+            </p>
+          </div>
           <div className="flex items-center space-x-4">
             <div className="relative">
               <input
@@ -170,7 +212,10 @@ function Orders() {
             <select
               className="border rounded-lg px-4 py-2"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as AlterationStatus | 'all')}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as AlterationStatus | 'all');
+                setCurrentPage(1);
+              }}
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -276,6 +321,36 @@ function Orders() {
             </div>
           )}
         </div>
+
+        {/* Load More / Pagination */}
+        {paginatedData.hasMore && (
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            >
+              {isLoadingMore ? (
+                <>
+                  <Loader className="w-5 h-5 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  Load More Orders
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Pagination Info */}
+        {paginatedData.totalCount > 0 && (
+          <div className="mt-4 text-center text-sm text-gray-500">
+            Loaded {filteredOrders.length} of {paginatedData.totalCount} orders
+          </div>
+        )}
 
         <NewOrderModal 
           isOpen={isNewOrderModalOpen}

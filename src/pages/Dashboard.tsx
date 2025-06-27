@@ -4,10 +4,10 @@ import Layout from '../components/Layout';
 import NewOrderModal from '../components/NewOrderModal';
 import OrderDetailsModal from '../components/OrderDetailsModal';
 import CalendarView from '../components/CalendarView';
-import { Plus, Search, Clock, Loader, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react';
+import { Plus, Search, Clock, Loader, CheckCircle, ArrowRight, AlertCircle, FileText, User, Phone, Maximize2, Minimize2, X } from 'lucide-react';
 import type { Order, AlterationStatus } from '../types';
 import OrderStatusSelect from '../components/OrderStatusSelect';
-import { getStoredOrders, storeOrder, calculateTotalRevenue } from '../services/orders';
+import { getAllStoredOrders, storeOrder, calculateTotalRevenue } from '../services/orders';
 import { supabase } from '../lib/supabaseClient';
 
 function Dashboard() {
@@ -32,8 +32,8 @@ function Dashboard() {
         throw new Error('User not found. Please log in again.');
       }
 
-      // Get stored orders
-      const storedOrders = await getStoredOrders(user.id);
+      // Get stored orders (limited to recent orders for dashboard)
+      const storedOrders = await getAllStoredOrders(user.id);
       setOrders(storedOrders || []);
       
       // Calculate total revenue
