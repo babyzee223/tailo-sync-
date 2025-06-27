@@ -87,7 +87,7 @@ export interface Database {
           email_address: string
           date: string
           preferred_contact_method: string
-          preferred_pickup_date: string
+       form.preferred_pickup_date || null
           dropoff_signature: string
           client_signature: string
           created_at: string
