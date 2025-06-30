@@ -156,9 +156,15 @@ export const getStoredOrders = async (
       }
 
       // Add pagination and ordering
-      const { data: orders, error: ordersError, count } = await query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + pageSize - 1);
+     const start = performance.now(); // ⏱️ Start the timer
+
+const { data: orders, error: ordersError, count } = await query
+  .order('created_at', { ascending: false })
+  .range(offset, offset + pageSize - 1);
+
+const duration = performance.now() - start; // ⏱️ Calculate how long it took
+console.log(`📦 Supabase query took ${duration.toFixed(2)}ms`);
+
 
       if (ordersError) throw ordersError;
 
