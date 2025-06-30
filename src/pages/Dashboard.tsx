@@ -7,41 +7,8 @@ import CalendarView from '../components/CalendarView';
 import { Plus, Search, Clock, Loader, CheckCircle, ArrowRight, AlertCircle, FileText, User, Phone, Maximize2, Minimize2, X } from 'lucide-react';
 import type { Order, AlterationStatus } from '../types';
 import OrderStatusSelect from '../components/OrderStatusSelect';
-import const [orders, setOrders] = useState<Order[]>([]);
-const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-  const fetchOrders = async () => {
-    setLoading(true);
-
-    const { data: user } = await supabase.auth.getUser();
-    const userId = user?.user?.id;
-
-    if (!userId) {
-      setOrders([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', userId); // or 'client_id', depending on your schema
-
-    if (error) {
-      console.error('Error fetching orders:', error);
-      setOrders([]);
-    } else {
-      setOrders(data || []);
-    }
-
-    setLoading(false);
-  };
-
-  fetchOrders();
-}, []);
-
 import { supabase } from '../lib/supabaseClient';
+import { getAllStoredOrders, storeOrder, calculateTotalRevenue } from '../services/orders';
 
 function Dashboard() {
   const navigate = useNavigate();
