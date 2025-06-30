@@ -148,25 +148,7 @@ export const getStoredOrders = async (
       // Build query with optional status filter
       let query = supabase
         .from('orders')
-        .select(`
-          id,
-          status,
-          created_at,
-          updated_at,
-          due_date,
-          event_info,
-          timeline,
-          garments,
-          payment_info,
-          description,
-          client:clients (
-            name,
-            phone,
-            email,
-            carrier
-          )
-        `, { count: 'exact' })
-        .eq('user_id', userId);
+       .select('*', { count: 'exact' })
 
       // Add status filter if provided
       if (statusFilter) {
